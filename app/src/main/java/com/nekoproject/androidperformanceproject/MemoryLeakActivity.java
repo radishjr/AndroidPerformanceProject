@@ -25,6 +25,8 @@ public class MemoryLeakActivity extends AppCompatActivity {
 
     String[] fileList;
     ListView listview;
+    static Bitmap wrongBitmapNotReleased;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -114,6 +116,7 @@ public class MemoryLeakActivity extends AppCompatActivity {
                         BitmapFactory.Options options = new BitmapFactory.Options();
                         options.inSampleSize = 2;
                         Bitmap b = BitmapFactory.decodeStream(stream, null, options);
+                        wrongBitmapNotReleased = b;
                         return b;
 
                     }catch (OutOfMemoryError e){
@@ -136,7 +139,6 @@ public class MemoryLeakActivity extends AppCompatActivity {
                 }
             };
             task.execute();
-
             String text = (String)getItem(position);
             tv.setText(text);
             convertView = view;

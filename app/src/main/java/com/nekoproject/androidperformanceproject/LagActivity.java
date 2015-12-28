@@ -3,8 +3,8 @@ package com.nekoproject.androidperformanceproject;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.Image;
 import android.os.AsyncTask;
-import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -13,55 +13,57 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Objects;
 
 public class LagActivity extends AppCompatActivity {
 
+    String[] fileList;
     ListView listview;
-    List<String> textList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_lag);
         listview = (ListView)findViewById(R.id.list_view);
 
-
-        AsyncTask task = new AsyncTask(){
+        AsyncTask task = new AsyncTask() {
             @Override
             protected Object doInBackground(Object[] params) {
                 AssetManager am = getAssets();
                 try {
-                    String[] fileList = am.list("");
-                    for(String path : fileList){
-                        if(path.endsWith(".jpg")){
-                            Bitmap b = BitmapFactory.decodeStream(am.open(path));
-                            int sampleSize = b.getWidth() / 200;
-                            b.recycle();
-                        }
-                    }
-                }catch (Exception e){
-                    Log.e("test", "error", e);
+                    fileList = am.list("testimages");
+
+                    //First bitmap
+                    String path = fileList[0];
+                    InputStream stream = am.open("testimages/" + path);
+                }catch (IOException e){
+                    Log.e("error", "err", e);
                 }
                 return null;
             }
+
+            @Override
+            protected void onPostExecute(Object o) {
+                super.onPostExecute(o);
+
+                MemoryLeakAdapter adapter = new MemoryLeakAdapter();
+                listview.setAdapter(adapter);
+            }
         };
         task.execute();
-
-
-        LagAdapter adapter = new LagAdapter();
-        listview.setAdapter(adapter);
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_lag, menu);
+        getMenuInflater().inflate(R.menu.menu_memory_leak, menu);
         return true;
     }
 
@@ -80,15 +82,15 @@ public class LagActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    class LagAdapter extends BaseAdapter{
+    class MemoryLeakAdapter extends BaseAdapter {
         @Override
         public int getCount() {
-            return textList.size();
+            return fileList.length;
         }
 
         @Override
         public Object getItem(int position) {
-            return textList.get(position);
+            return fileList[position];
         }
 
         @Override
@@ -99,7 +101,57 @@ public class LagActivity extends AppCompatActivity {
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
             View view = View.inflate(LagActivity.this, R.layout.item_lag, null);
-            TextView tv = (TextView)view.findViewById(R.id.display_text);
+            final TextView tv = (TextView)view.findViewById(R.id.display_text);
+            final ImageView iv = (ImageView)view.findViewById(R.id.image_view);
+
+            final String path = (String)getItem(position);
+            /*AsyncTask task = new AsyncTask() {
+                @Override
+                protected Object doInBackground(Object[] params) {
+                    try {
+                        AssetManager am = getAssets();
+                        InputStream stream = am.open("testimages/" + path);
+
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inSampleSize = 2;
+                        Bitmap b = BitmapFactory.decodeStream(stream, null, options);
+                        return b;
+
+                    }catch (OutOfMemoryError e){
+                        return "OutOfMemoryError";
+                    } catch (Exception e){
+                        return e.getMessage();
+                    }
+                }
+
+                @Override
+                protected void onPostExecute(Object o) {
+                    super.onPostExecute(o);
+
+                    if(o!=null) {
+                        if(o instanceof Bitmap)
+                            iv.setImageBitmap((Bitmap)o);
+                        if(o instanceof String)
+                            tv.setText((String)o);
+                    }
+                }
+            };
+            task.execute();*/
+
+            try {
+                AssetManager am = getAssets();
+                InputStream stream = am.open("testimages/" + path);
+
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = 2;
+                Bitmap b = BitmapFactory.decodeStream(stream, null, options);
+                iv.setImageBitmap(b);
+            }catch (OutOfMemoryError e){
+                tv.setText("OutOfMemoryError");
+            } catch (Exception e){
+                tv.setText(e.getMessage());
+            }
+
             String text = (String)getItem(position);
             tv.setText(text);
             convertView = view;
