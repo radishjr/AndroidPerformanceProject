@@ -7,6 +7,7 @@ import android.media.Image;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.os.StrictMode;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -14,14 +15,17 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
 import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 import com.nostra13.universalimageloader.core.assist.FailReason;
+import com.nostra13.universalimageloader.core.assist.ImageScaleType;
 import com.nostra13.universalimageloader.core.assist.ImageSize;
 import com.nostra13.universalimageloader.core.listener.ImageLoadingListener;
 
@@ -37,20 +41,49 @@ public class SmoothActivity extends AppCompatActivity {
 
     List<String> fileList = new ArrayList<>();
     ListView listview;
-
+    DisplayImageOptions options;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        StrictMode.noteSlowCall("onCreate");
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_lag);
         listview = (ListView)findViewById(R.id.list_view);
+        listview.setOnScrollListener(new AbsListView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(AbsListView view, int scrollState) {
+                switch (scrollState) {
+                    case SCROLL_STATE_FLING:
+                        ImageLoader.getInstance().pause();
+                        break;
+                    default:
+                        ImageLoader.getInstance().resume();
+                        break;
+                }
+            }
 
-        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(SmoothActivity.this)
-                .memoryCacheExtraOptions(200, 200)
-                .memoryCacheSize(20 * 1024 * 1024)
-                .memoryCacheSizePercentage(50)
+            @Override
+            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+
+            }
+        });
+
+        if(!ImageLoader.getInstance().isInited()) {
+            ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(SmoothActivity.this)
+                    .memoryCacheExtraOptions(200, 200)
+                    .memoryCacheSize(20 * 1024 * 1024)
+                    .memoryCacheSizePercentage(50)
+                    .build();
+            ImageLoader.getInstance().init(config);
+        }
+
+        options = new DisplayImageOptions.Builder()
+                .bitmapConfig(Bitmap.Config.RGB_565)
+                .showImageOnLoading(R.mipmap.loading__img)
+                .showImageOnFail(R.mipmap.missing__img)
+                .cacheInMemory(true)
                 .build();
-        ImageLoader.getInstance().init(config);
 
         AsyncTask task = new AsyncTask() {
             @Override
@@ -76,7 +109,7 @@ public class SmoothActivity extends AppCompatActivity {
                             throw new RuntimeException(e);
                         }
 
-                        fileList.add(f.getAbsolutePath());
+                        fileList.add("file:///" + f.getAbsolutePath());
                     }
 
                 }catch (IOException e){
@@ -137,58 +170,37 @@ public class SmoothActivity extends AppCompatActivity {
         class ViewHolder{
             TextView tv;
             ImageView iv;
+            SmoothView sv;
             int position;
             String path;
         }
 
         @Override
         public View getView(final int position, View convertView, ViewGroup parent) {
+
+            StrictMode.noteSlowCall("getView");
+
             final ViewHolder vh;
             if(convertView == null) {
                 convertView = View.inflate(SmoothActivity.this, R.layout.item_smooth, null);
                 vh = new ViewHolder();
                 vh.tv = (TextView) convertView.findViewById(R.id.display_text);
                 vh.iv = (ImageView) convertView.findViewById(R.id.image_view);
+                vh.sv = (SmoothView) convertView.findViewById(R.id.smooth_view);
                 convertView.setTag(vh);
             }else{
                 vh = (ViewHolder)convertView.getTag();
+                ImageLoader.getInstance().cancelDisplayTask(vh.iv);
             }
 
             final String path = (String)getItem(position);
-            File file = new File(path);
-            Uri uri = Uri.fromFile(file);
-            String uriPath = Uri.decode(uri.toString());
             vh.iv.setTag(position);
-            ImageLoader.getInstance().displayImage(uriPath, vh.iv,  new ImageLoadingListener() {
-                @Override
-                public void onLoadingStarted(String s, View view) {
-                    int p = (int)view.getTag();
-                    if(p != position) {
-                        vh.iv.setImageBitmap(null);
-                    }
-                }
 
-                @Override
-                public void onLoadingFailed(String s, View view, FailReason failReason) {
-
-                }
-
-                @Override
-                public void onLoadingComplete(String s, View view, Bitmap bitmap) {
-                    int p = (int)view.getTag();
-                    if(p == position) {
-                        vh.iv.setImageBitmap(bitmap);
-                    }
-                }
-
-                @Override
-                public void onLoadingCancelled(String s, View view) {
-
-                }
-            });
+            ImageLoader.getInstance().displayImage(path, vh.iv, options);
 
             String text = (String)getItem(position);
             vh.tv.setText(text);
+            vh.sv.setText(String.valueOf(position));
             return convertView;
         }
     }

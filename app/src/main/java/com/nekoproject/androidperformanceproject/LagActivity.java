@@ -4,7 +4,9 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -17,13 +19,23 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import com.nostra13.universalimageloader.core.assist.FailReason;
+import com.nostra13.universalimageloader.core.assist.ImageSize;
+import com.nostra13.universalimageloader.core.listener.ImageLoadingListener;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class LagActivity extends AppCompatActivity {
 
-    String[] fileList;
+    List<String> fileList = new ArrayList<>();
     ListView listview;
 
     @Override
@@ -33,16 +45,40 @@ public class LagActivity extends AppCompatActivity {
         setContentView(R.layout.activity_lag);
         listview = (ListView)findViewById(R.id.list_view);
 
+        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(LagActivity.this)
+                .memoryCacheExtraOptions(200, 200)
+                .memoryCacheSize(20 * 1024 * 1024)
+                .memoryCacheSizePercentage(50)
+                .build();
+        ImageLoader.getInstance().init(config);
+
         AsyncTask task = new AsyncTask() {
             @Override
             protected Object doInBackground(Object[] params) {
                 AssetManager am = getAssets();
                 try {
-                    fileList = am.list("testimages");
+                    String[] list = am.list("testimages");
 
-                    //First bitmap
-                    String path = fileList[0];
-                    InputStream stream = am.open("testimages/" + path);
+                    for(String file : list) {
+                        File f = new File(getCacheDir() + "/" + file);
+                        if (!f.exists()) try {
+
+                            InputStream is = getAssets().open("testimages/" + file);
+                            int size = is.available();
+                            byte[] buffer = new byte[size];
+                            is.read(buffer);
+                            is.close();
+
+                            FileOutputStream fos = new FileOutputStream(f);
+                            fos.write(buffer);
+                            fos.close();
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        fileList.add(f.getAbsolutePath());
+                    }
+
                 }catch (IOException e){
                     Log.e("error", "err", e);
                 }
@@ -85,12 +121,12 @@ public class LagActivity extends AppCompatActivity {
     class MemoryLeakAdapter extends BaseAdapter {
         @Override
         public int getCount() {
-            return fileList.length;
+            return fileList.size();
         }
 
         @Override
         public Object getItem(int position) {
-            return fileList[position];
+            return fileList.get(position);
         }
 
         @Override
@@ -98,63 +134,64 @@ public class LagActivity extends AppCompatActivity {
             return 0;
         }
 
+        class ViewHolder{
+            TextView tv;
+            ImageView iv;
+            LagView lv;
+            int position;
+            String path;
+        }
+
         @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            View view = View.inflate(LagActivity.this, R.layout.item_lag, null);
-            final TextView tv = (TextView)view.findViewById(R.id.display_text);
-            final ImageView iv = (ImageView)view.findViewById(R.id.image_view);
-
-            final String path = (String)getItem(position);
-            /*AsyncTask task = new AsyncTask() {
-                @Override
-                protected Object doInBackground(Object[] params) {
-                    try {
-                        AssetManager am = getAssets();
-                        InputStream stream = am.open("testimages/" + path);
-
-                        BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inSampleSize = 2;
-                        Bitmap b = BitmapFactory.decodeStream(stream, null, options);
-                        return b;
-
-                    }catch (OutOfMemoryError e){
-                        return "OutOfMemoryError";
-                    } catch (Exception e){
-                        return e.getMessage();
-                    }
-                }
-
-                @Override
-                protected void onPostExecute(Object o) {
-                    super.onPostExecute(o);
-
-                    if(o!=null) {
-                        if(o instanceof Bitmap)
-                            iv.setImageBitmap((Bitmap)o);
-                        if(o instanceof String)
-                            tv.setText((String)o);
-                    }
-                }
-            };
-            task.execute();*/
-
-            try {
-                AssetManager am = getAssets();
-                InputStream stream = am.open("testimages/" + path);
-
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inSampleSize = 2;
-                Bitmap b = BitmapFactory.decodeStream(stream, null, options);
-                iv.setImageBitmap(b);
-            }catch (OutOfMemoryError e){
-                tv.setText("OutOfMemoryError");
-            } catch (Exception e){
-                tv.setText(e.getMessage());
+        public View getView(final int position, View convertView, ViewGroup parent) {
+            final ViewHolder vh;
+            if(convertView == null) {
+                convertView = View.inflate(LagActivity.this, R.layout.item_lag, null);
+                vh = new ViewHolder();
+                vh.tv = (TextView) convertView.findViewById(R.id.display_text);
+                vh.iv = (ImageView) convertView.findViewById(R.id.image_view);
+                vh.lv = (LagView) convertView.findViewById(R.id.lag_view);
+                convertView.setTag(vh);
+            }else{
+                vh = (ViewHolder)convertView.getTag();
             }
 
+            final String path = (String)getItem(position);
+            File file = new File(path);
+            Uri uri = Uri.fromFile(file);
+            String uriPath = Uri.decode(uri.toString());
+            vh.iv.setTag(position);
+            vh.lv.setText(String.valueOf(position));
+            ImageLoader.getInstance().displayImage(uriPath, vh.iv, new ImageLoadingListener() {
+                @Override
+                public void onLoadingStarted(String s, View view) {
+                    int p = (int) view.getTag();
+                    if (p != position) {
+                        vh.iv.setImageBitmap(null);
+                    }
+                }
+
+                @Override
+                public void onLoadingFailed(String s, View view, FailReason failReason) {
+
+                }
+
+                @Override
+                public void onLoadingComplete(String s, View view, Bitmap bitmap) {
+                    int p = (int) view.getTag();
+                    if (p == position) {
+                        vh.iv.setImageBitmap(bitmap);
+                    }
+                }
+
+                @Override
+                public void onLoadingCancelled(String s, View view) {
+
+                }
+            });
+
             String text = (String)getItem(position);
-            tv.setText(text);
-            convertView = view;
+            vh.tv.setText(text);
             return convertView;
         }
     }
