@@ -34,7 +34,15 @@ public class MainActivity extends AppCompatActivity {
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, MemoryLeakActivity.class);
+                Intent intent = new Intent(MainActivity.this, OutOfMemoryActivity.class);
+                startActivity(intent);
+            }
+        });
+        btn = (Button)findViewById(R.id.leak_button);
+        btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MainActivity.this, LeakActivity.class);
                 startActivity(intent);
             }
         });

@@ -29,8 +29,16 @@
     <Button
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Memory Leak"
+        android:text="Out Of Memory"
         android:id="@+id/mem_leak_button"
+        android:layout_below="@+id/textView"
+        android:layout_alignParentStart="true" />
+
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Leak"
+        android:id="@+id/leak_button"
         android:layout_below="@+id/textView"
         android:layout_alignParentStart="true" />
 </LinearLayout>

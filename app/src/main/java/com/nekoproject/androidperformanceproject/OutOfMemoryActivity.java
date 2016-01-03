@@ -3,7 +3,6 @@ package com.nekoproject.androidperformanceproject;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.Image;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -19,12 +18,13 @@ import android.widget.TextView;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Objects;
 
-public class MemoryLeakActivity extends AppCompatActivity {
+public class OutOfMemoryActivity extends AppCompatActivity {
 
     String[] fileList;
     ListView listview;
+    AsyncTask task;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -99,7 +99,7 @@ public class MemoryLeakActivity extends AppCompatActivity {
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            View view = View.inflate(MemoryLeakActivity.this, R.layout.item_lag, null);
+            View view = View.inflate(OutOfMemoryActivity.this, R.layout.item_lag, null);
             final TextView tv = (TextView)view.findViewById(R.id.display_text);
             final ImageView iv = (ImageView)view.findViewById(R.id.image_view);
 
@@ -112,7 +112,7 @@ public class MemoryLeakActivity extends AppCompatActivity {
                         InputStream stream = am.open("testimages/" + path);
 
                         BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inSampleSize = 2;
+                        options.inSampleSize = 4;
                         Bitmap b = BitmapFactory.decodeStream(stream, null, options);
                         return b;
 
