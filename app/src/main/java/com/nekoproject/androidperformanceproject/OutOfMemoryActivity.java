@@ -23,7 +23,6 @@ public class OutOfMemoryActivity extends AppCompatActivity {
 
     String[] fileList;
     ListView listview;
-    AsyncTask task;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

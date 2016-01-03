@@ -28,10 +28,6 @@
             android:name=".LeakActivity"
             android:label="@string/title_activity_memory_leak" >
         </activity>
-        <activity
-            android:name=".ReallySlowActivity"
-            android:label="@string/title_activity_memory_leak" >
-        </activity>
     </application>
 
 </manifest>
