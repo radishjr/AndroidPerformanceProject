@@ -25,11 +25,11 @@
             android:label="Smooth" >
         </activity>
         <activity
-            android:name=".OutOfMemoryActivity"
+            android:name=".LeakActivity"
             android:label="@string/title_activity_memory_leak" >
         </activity>
         <activity
-            android:name=".LeakActivity"
+            android:name=".ReallySlowActivity"
             android:label="@string/title_activity_memory_leak" >
         </activity>
     </application>
